@@ -5,7 +5,7 @@
 ![RC4](https://img.shields.io/badge/algorithm-RC4-red.svg)
 ![KDF Support](https://img.shields.io/badge/KDF-PBKDF2%2FEvpKDF-orange.svg)
 
-Un outil complet de chiffrement/déchiffrement RC4 avec support KDF avancé. Compatible avec les options du site [emn178.github.io/online-tools/rc4/encrypt/](https://emn178.github.io/online-tools/rc4/encrypt/).
+Un outil complet de chiffrement/déchiffrement RC4 avec support KDF avancé.
 
 ## ✨ Fonctionnalités
 
