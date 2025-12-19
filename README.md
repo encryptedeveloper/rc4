@@ -23,8 +23,6 @@ Un outil encore en beta de chiffrement/déchiffrement RC4.
 # Clone le repository
 git clone https://github.com/encryptedeveloper/rc4.git
 cd rc4
-
-# Aucune dépendance nécessaire - pur Python!
 ```
 
 ## 🛠️ Utilisation
