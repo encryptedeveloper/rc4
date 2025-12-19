@@ -1,21 +1,30 @@
-# RC4 Encryption/Decryption Tool
+# 🔐 RC4 Encryption/Decryption Tool
 
 ![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![RC4](https://img.shields.io/badge/algorithm-RC4-red.svg)
+![KDF Support](https://img.shields.io/badge/KDF-PBKDF2%2FEvpKDF-orange.svg)
 
-Un outil encore en beta de chiffrement/déchiffrement RC4.
+Un outil complet de chiffrement/déchiffrement RC4 avec support KDF avancé. Compatible avec les options du site [emn178.github.io/online-tools/rc4/encrypt/](https://emn178.github.io/online-tools/rc4/encrypt/).
 
-## 🚀 Fonctionnalités
+## ✨ Fonctionnalités
 
-- **Chiffrement & Déchiffrement** RC4 complet
-- **Multiples encodages d'entrée** : UTF-8, Hexadécimal, Base64
-- **Formats de sortie** : Hex (minuscule/majuscule), Base64
-- **Option "Drop bytes"** : Supprime N premiers octets du résultat
-- **Support fichiers** : Lecture/écriture depuis/vers des fichiers
-- **Interface CLI intuitive** avec arguments détaillés
-- **Compatibilité totale** avec le site emn178.github.io
-- **Support stdin/stdout** pour intégration dans des pipelines
+### 🔐 Chiffrement & Dérivation de clé
+- **RC4 pur** - Implémentation complète KSA/PRGA
+- **KDF support** - PBKDF2 (SHA1) et EvpKDF (MD5)
+- **Gestion avancée des clés** - Tailles 40-256 bits
+- **Sels intelligents** - Random, personnalisé ou aucun
+
+### 🔄 Encodages supportés
+- **Entrée** : UTF-8, Hexadécimal, Base64
+- **Sortie** : Hex (minuscule/majuscule), Base64, Raw
+- **Auto-détection** pour le décryptage
+
+### ⚙️ Options avancées
+- **Drop bytes** - Suppression des N premiers octets
+- **Support fichiers** - Lecture/écriture directe
+- **Pipeline friendly** - stdin/stdout intégration
+- **Compatibilité totale** avec emn178.github.io
 
 ## 📦 Installation
 
@@ -23,175 +32,206 @@ Un outil encore en beta de chiffrement/déchiffrement RC4.
 # Clone le repository
 git clone https://github.com/encryptedeveloper/rc4.git
 cd rc4
+
+# Aucune dépendance nécessaire - pur Python!
 ```
 
-## 🛠️ Utilisation
+## 🚀 Utilisation rapide
 
-### Encryptage basique
+### Chiffrement basique
 ```bash
 python rc4.py "Hello World" "ma_clé"
 ```
 
-### Encryptage avec options avancées
+### Avec KDF PBKDF2 (recommandé)
 ```bash
-# Hex → Hex majuscule avec suppression de 3 octets
-python rc4.py "48656c6c6f" "secret" --input-encoding hex --output-encoding hex_upper --drop 3
-
-# Base64 → Base64
-python rc4.py "SGVsbG8gV29ybGQ=" "key" --input-encoding base64 --output-encoding base64
+python rc4.py "Secret" "password" --kdf pbkdf2 --key-size 256 --salt-mode random
 ```
 
 ### Décryptage
 ```bash
-# Hex → UTF-8
-python rc4.py "7f7c7b7a79" "secret" --decrypt --input-encoding hex
+python rc4.py "ciphertext_hex" "password" --decrypt --kdf pbkdf2 --salt-mode custom --salt "votre_sel"
 ```
 
-### Avec fichiers
-```bash
-# Encryptage fichier
-python rc4.py --input-file message.txt --key "password" --output-file encrypted.txt
+## 🛠️ Guide complet des options
 
-# Décryptage fichier
-python rc4.py --input-file encrypted.txt --key "password" --decrypt --output-file decrypted.txt
+### Options principales
+```
+text                    Texte à traiter (stdin si vide)
+key                     Clé/passphrase de chiffrement
 ```
 
-### Pipeline avec stdin
-```bash
-echo -n "Secret Message" | python rc4.py --key "mykey"
-cat message.txt | python rc4.py --key "pass" --output-encoding base64
+### 🔑 Options KDF & Clés
+```
+--kdf TYPE             Type KDF [pbkdf2, evpkdf, none] (défaut: pbkdf2)
+--key-size BITS        Taille clé [40,56,64,80,128,192,256] (défaut: 128)
+--salt-mode MODE       Mode sel [random, custom, none] (défaut: none)
+--salt VALUE           Sel personnalisé (avec --salt-mode custom)
+--iterations N         Itérations PBKDF2 (défaut: 1000)
 ```
 
-## 📋 Options disponibles
-
-### Arguments principaux
-```
-text                    Texte à encrypter (lecture stdin si absent)
-key                     Clé de chiffrement
-```
-
-### Options d'encodage
+### 📥📤 Options encodage
 ```
 --input-encoding       Encodage entrée [utf8, hex, base64] (défaut: utf8)
 --output-encoding      Encodage sortie [hex_lower, hex_upper, base64, raw] (défaut: hex_lower)
-```
-
-### Options de traitement
-```
 --decrypt              Mode déchiffrement
---drop N               Supprime N premiers octets du résultat
+--drop N               Supprime N premiers octets
 ```
 
-### Options fichiers
+### 📁 Options fichiers
 ```
---input-file FILE      Lit l'entrée depuis un fichier
---output-file FILE     Écrit la sortie dans un fichier
---key KEY              Spécifie la clé (alternative)
+--input-file FILE      Lit depuis un fichier
+--output-file FILE     Écrit dans un fichier
 ```
 
-## 🔧 Exemples détaillés
+## 📚 Exemples détaillés
 
-### Exemple 1 : Compatibilité avec le site web
+### 🔄 Modes KDF
 ```bash
-# Sur le site : Texte="test", Clé="key", Output=hex lowercase
-# Résultat attendu : bf0b0c
+# PBKDF2 avec sel aléatoire (sécurisé)
+python rc4.py "Confidential" "StrongPass" --kdf pbkdf2 --salt-mode random --iterations 10000
 
-python rc4.py "test" "key"
-# Sortie : bf0b0c ✓
+# EvpKDF avec sel personnalisé
+python rc4.py "Data" "Key123" --kdf evpkdf --salt-mode custom --salt "MyUniqueSalt"
+
+# Sans KDF (clé brute - compatible legacy)
+python rc4.py "Text" "rawkey" --kdf none --salt-mode none
 ```
 
-### Exemple 2 : Drop bytes
+### 🎯 Scénarios pratiques
 ```bash
-# Supprime les 2 premiers octets du résultat encrypté
-python rc4.py "message" "secret" --drop 2
-```
+# Chiffrement fichier avec KDF
+python rc4.py --input-file document.txt --key "master_password" \
+  --kdf pbkdf2 --salt-mode random --output-file document.enc
 
-### Exemple 3 : Sortie en majuscules
-```bash
-python rc4.py "data" "key123" --output-encoding hex_upper
-# Sortie : 1A2B3C4D (au lieu de 1a2b3c4d)
-```
+# Décryptage fichier
+python rc4.py --input-file document.enc --key "master_password" --decrypt \
+  --kdf pbkdf2 --salt-mode custom --salt "53616c7465645f5f3de48688b706620ed2e3" \
+  --output-file document_decrypted.txt
 
-### Exemple 4 : Traitement par lots
-```bash
-# Encrypte plusieurs fichiers
+# Pipeline avec données hex
+echo -n "48656c6c6f" | python rc4.py --key "test" --input-encoding hex --drop 2
+
+# Batch processing
 for file in *.txt; do
-    python rc4.py --input-file "$file" --key "master_key" --output-file "${file%.txt}.enc"
+  python rc4.py --input-file "$file" --key "batch_key" --kdf evpkdf \
+    --output-file "${file%.txt}.rc4" --salt-mode random
 done
 ```
 
-## 🧪 Tests de validation
-
-Vérifiez la compatibilité avec le site :
+### ✅ Tests de compatibilité
 ```bash
-# Test 1
-python rc4.py "RC4" "test" --output-encoding hex_upper
-# Doit correspondre au site avec mêmes paramètres
+# Vérification avec le site web
+python rc4.py "test" "key" --kdf none --salt-mode none
+# Devrait retourner: bf0b0c (identique au site)
 
-# Test 2
-python rc4.py "Hello" "world" --input-encoding hex --output-encoding base64
-# Vérifiez sur le site avec input hex de "Hello"
-```
-
-## 🐛 Dépannage
-
-### Erreur "Impossible de supprimer X octets"
-```
-Solution : Réduisez la valeur de --drop ou vérifiez la taille de vos données
+# Test KDF
+python rc4.py "Hello" "world" --kdf pbkdf2 --salt-mode custom --salt "test" --iterations 1
 ```
 
-### Erreur "Non-hexadecimal digit found"
-```
-Solution : Nettoyez l'entrée hex (pas d'espaces, retours à la ligne)
+## 🛡️ Sécurité & KDF
+
+### PBKDF2 (Password-Based Key Derivation Function 2)
+- **Algorithme** : HMAC-SHA1
+- **Avantages** : Standardisé, résistant aux attaques
+- **Utilisation** : `--kdf pbkdf2 --iterations 10000`
+
+### EvpKDF (EVP Key Derivation Function)
+- **Algorithme** : MD5 itéré
+- **Avantages** : Compatible CryptoJS, rapide
+- **Utilisation** : `--kdf evpkdf`
+
+### Gestion des sels
+| Mode | Description | Usage |
+|------|-------------|--------|
+| `random` | Génère un sel sécurisé aléatoire | Pour nouveaux chiffrements |
+| `custom` | Utilise un sel spécifié | Pour déchiffrement ou sel connu |
+| `none` | Pas de sel | Compatibilité legacy |
+
+**Important** : Conservez le sel généré avec `--salt-mode random` pour pouvoir déchiffrer plus tard!
+
+## ⚠️ Dépannage
+
+### Problèmes courants
+```bash
+# Erreur: "Impossible de supprimer X octets"
+python rc4.py "short" "key" --drop 10  # Trop grand pour les données
+
+# Erreur: "Non-hexadecimal digit found"
+python rc4.py "invalid hex" "key" --input-encoding hex  # Nettoyer l'entrée hex
+
+# Décryptage échoue
+# → Vérifiez: même clé, même KDF, même sel, mêmes paramètres
 ```
 
-### Caractères spéciaux UTF-8
-```
-Solution : Utilisez des guillemets pour les chaînes complexes
-python rc4.py "Mot de passé €uro" "clé_secrète"
+### Vérification des paramètres
+```bash
+# Affiche les infos KDF
+python rc4.py "test" "pass" --kdf pbkdf2 --salt-mode random
+# Notez le sel affiché pour déchiffrement futur
 ```
 
-## 📁 Structure du projet
-
+## 📊 Structure du projet
 ```
-rc4-tool/
+rc4/
 ├── rc4.py              # Script principal
-├── README.md           # Ce fichier
-├── examples/           # Exemples d'utilisation
-│   ├── test_vectors.txt
-│   └── batch_encrypt.sh
-└── tests/              # Tests unitaires
-    └── test_rc4.py
+├── LICENSE             # Licence MIT
+└── README.md           # Documentation
 ```
+
+## 🔄 Workflow recommandé
+
+1. **Chiffrement avec sel aléatoire**
+   ```bash
+   python rc4.py "Mon secret" "MaPassphrase" --kdf pbkdf2 --salt-mode random
+   ```
+
+2. **Conserver les informations affichées**
+   ```
+   [Info] KDF: PBKDF2, Taille clé: 128 bits
+   [Info] Mode sel: random
+   [Info] Sel utilisé: 53616c7465645f5f3de48688b706620ed2e3
+   [Info] Itérations: 1000
+   ```
+
+3. **Décryptage avec mêmes paramètres**
+   ```bash
+   python rc4.py "ciphertext" "MaPassphrase" --decrypt \
+     --kdf pbkdf2 --salt-mode custom --salt "53616c7465645f5f3de48688b706620ed2e3"
+   ```
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! Pour contribuer :
-
+Les contributions sont bienvenues! Processus:
 1. Fork le projet
-2. Créez une branche (`git checkout -b feature/AmazingFeature`)
-3. Commitez vos changements (`git commit -m 'Add AmazingFeature'`)
-4. Push sur la branche (`git push origin feature/AmazingFeature`)
+2. Créez une branche feature (`git checkout -b feature/Amelioration`)
+3. Commitez (`git commit -m 'Ajout: Description'`)
+4. Push (`git push origin feature/Amelioration`)
 5. Ouvrez une Pull Request
 
 ## 📄 Licence
 
-Distribué sous licence MIT. Voir `LICENSE` pour plus d'informations.
+MIT License - Voir [LICENSE](LICENSE) pour détails.
 
-## 🔗 Liens utiles
+## ⚠️ Avertissement de sécurité
 
-- [Documentation RC4 sur Wikipedia](https://fr.wikipedia.org/wiki/RC4)
-- [Standard de chiffrement RC4](https://tools.ietf.org/html/rfc6229)
+**RC4 est considéré comme cryptographiquement faible** et ne devrait pas être utilisé pour:
+- Données sensibles
+- Communications sécurisées
+- Conformité aux standards modernes
 
-## ⭐ Support
+**Utilisez ce tool pour:**
+- Compatibilité legacy
+- Apprentissage cryptographique
+- Applications non-critiques
 
-Si ce projet vous est utile, n'hésitez pas à :
-- Donner une ⭐ sur GitHub
-- Partager avec vos collègues
-- Signaler les bugs ou suggestions d'amélioration
+## 🌟 Support
+
+Si ce projet vous est utile:
+- Donnez une ⭐ sur GitHub
+- Signalez les bugs via Issues
+- Proposez des améliorations
 
 ---
 
-**Note** : RC4 est considéré comme faible pour les applications de sécurité modernes. Utilisez-le uniquement pour de la compatibilité héritée ou des applications non-critiques.
-
-**Made with ❤️ pour la communauté crypto**
+**Développé avec ❤️ pour la communauté crypto - [@encryptedeveloper](https://github.com/encryptedeveloper)**
