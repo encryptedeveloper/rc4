@@ -24,7 +24,7 @@ Un outil complet de chiffrement/déchiffrement RC4 avec support KDF avancé.
 - **Drop bytes** - Suppression des N premiers octets
 - **Support fichiers** - Lecture/écriture directe
 - **Pipeline friendly** - stdin/stdout intégration
-- **Compatibilité totale** avec emn178.github.io
+- ~~**Compatibilité totale** avec emn178.github.io~~
 
 ## 📦 Installation
 
