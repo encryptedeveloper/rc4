@@ -36,19 +36,20 @@ class RC4Cipher:
         
         return bytes(result)
 
-def pbkdf2(password, salt, key_size, iterations=1000):
+def pbkdf2(password, salt, key_size, hash_algo='sha1', iterations=1000):
     password = password.encode() if isinstance(password, str) else password
     salt = salt.encode() if isinstance(salt, str) else salt
     
+    hash_func = getattr(hashlib, hash_algo, hashlib.sha1)
     key = b''
     block_index = 1
     
     while len(key) < key_size:
-        u = hmac.new(password, salt + struct.pack('>I', block_index), hashlib.sha1).digest()
+        u = hmac.new(password, salt + struct.pack('>I', block_index), hash_func).digest()
         result = u
         
         for _ in range(1, iterations):
-            u = hmac.new(password, u, hashlib.sha1).digest()
+            u = hmac.new(password, u, hash_func).digest()
             result = bytes(a ^ b for a, b in zip(result, u))
         
         key += result
@@ -56,34 +57,46 @@ def pbkdf2(password, salt, key_size, iterations=1000):
     
     return key[:key_size]
 
-def evpkdf(password, salt, key_size, iterations=1):
+def evpkdf(password, salt, key_size, hash_algo='md5', iterations=1):
     password = password.encode() if isinstance(password, str) else password
     salt = salt.encode() if isinstance(salt, str) else salt
     
+    hash_func = getattr(hashlib, hash_algo, hashlib.md5)
     key = b''
+    
     while len(key) < key_size:
         data = password + salt if len(key) == 0 else key[-len(salt):] if len(salt) > 0 else key
         for _ in range(iterations):
-            md5 = hashlib.md5()
-            md5.update(data)
-            data = md5.digest()
+            hash_obj = hash_func()
+            hash_obj.update(data)
+            data = hash_obj.digest()
         key += data
     
     return key[:key_size]
 
+def simple_hash(password, hash_algo='sha256'):
+    password = password.encode() if isinstance(password, str) else password
+    hash_func = getattr(hashlib, hash_algo, hashlib.sha256)
+    
+    return hash_func(password).digest()
+
+def ripemd160_hash(password):
+    import hashlib
+    try:
+        ripemd160 = hashlib.new('ripemd160')
+    except ValueError:
+        print("[Erreur] RIPEMD-160 n'est pas disponible sur votre système")
+        print("[Info] Utilisation de SHA256 comme fallback")
+        return hashlib.sha256(password.encode() if isinstance(password, str) else password).digest()
+    
+    ripemd160.update(password.encode() if isinstance(password, str) else password)
+    return ripemd160.digest()
+
 def generate_random_salt(length=16):
     return secrets.token_hex(length)
 
-def format_salt_for_output(salt, salt_display='hex'):
-    if salt_display == 'hex':
-        return salt.hex() if isinstance(salt, bytes) else salt
-    elif salt_display == 'base64':
-        if isinstance(salt, str):
-            salt = salt.encode('utf-8')
-        return base64.b64encode(salt).decode('ascii')
-    return salt
-
-def derive_key(password, kdf_type='pbkdf2', key_size=128, salt='', salt_mode='custom', iterations=1000):
+def derive_key(password, key_type='pbkdf2', key_size=128, salt='', salt_mode='none', 
+               hash_algo='sha1', iterations=1000):
     key_size_bytes = key_size // 8
     
     if salt_mode == 'random':
@@ -94,12 +107,27 @@ def derive_key(password, kdf_type='pbkdf2', key_size=128, salt='', salt_mode='cu
     elif salt_mode == 'custom':
         salt = salt
     
-    if kdf_type == 'pbkdf2':
-        return pbkdf2(password, salt, key_size_bytes, iterations), salt
-    elif kdf_type == 'evpkdf':
-        return evpkdf(password, salt, key_size_bytes, iterations), salt
+    if key_type == 'pbkdf2':
+        return pbkdf2(password, salt, key_size_bytes, hash_algo, iterations), salt
+    elif key_type == 'evpkdf':
+        return evpkdf(password, salt, key_size_bytes, hash_algo, iterations), salt
+    elif key_type == 'hash':
+        if hash_algo == 'ripemd160':
+            hashed_key = ripemd160_hash(password)
+        else:
+            hashed_key = simple_hash(password, hash_algo)
+        
+        if len(hashed_key) < key_size_bytes:
+            while len(hashed_key) < key_size_bytes:
+                hashed_key += hashlib.sha256(hashed_key).digest()
+        return hashed_key[:key_size_bytes], salt
+    elif key_type == 'none':
+        raw_key = password.encode() if isinstance(password, str) else password
+        if len(raw_key) < key_size_bytes:
+            raw_key = raw_key.ljust(key_size_bytes, b'\0')
+        return raw_key[:key_size_bytes], salt
     else:
-        raise ValueError(f"Type KDF inconnu: {kdf_type}")
+        raise ValueError(f"Type de clé inconnu: {key_type}")
 
 def decode_input(data, input_encoding):
     data = data.strip()
@@ -134,18 +162,24 @@ def format_output(data, output_format, drop_bytes=0):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Chiffrement RC4 avec KDF et options similaires au site emn178.github.io",
+        description="Chiffrement RC4 avec support KDF et hash",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  %(prog)s "Mon texte" "ma clé"
-  %(prog)s "Mon texte" "ma clé" --kdf pbkdf2 --key-size 256
-  %(prog)s "Mon texte" "ma clé" --kdf evpkdf --salt-mode random
-  %(prog)s "Mon texte" "ma clé" --salt-mode custom --salt "mysalt" --iterations 10000
-  %(prog)s "Mon texte" "ma clé" --salt-mode none
-  %(prog)s "48656c6c6f" "secret" --input-encoding hex --output-encoding hex_upper --drop 3
-  %(prog)s "SGVsbG8gV29ybGQ=" "key" --input-encoding base64 --output-encoding base64
-  %(prog)s "75a6" "hi" --decrypt --salt-mode none
+  # Hash simple
+  %(prog)s "Mon texte" "ma clé" --key-type hash --hash-algo sha256
+  
+  # PBKDF2 avec SHA512
+  %(prog)s "Secret" "pass" --key-type pbkdf2 --hash-algo sha512 --salt-mode random
+  
+  # EvpKDF avec MD5 (comportement original)
+  %(prog)s "Data" "key" --key-type evpkdf --hash-algo md5
+  
+  # RIPEMD-160 hash
+  %(prog)s "Texte" "password" --key-type hash --hash-algo ripemd160
+  
+  # Clé brute sans transformation
+  %(prog)s "Hello" "rawkey123" --key-type none
         """
     )
     
@@ -153,19 +187,22 @@ Exemples:
     parser.add_argument('key', nargs='?', help='Clé/passphrase de chiffrement')
     parser.add_argument('--key', dest='key_arg', help='Clé/passphrase de chiffrement')
     
-    parser.add_argument('--kdf', choices=['pbkdf2', 'evpkdf', 'none'], 
-                       default='pbkdf2', help='Type de dérivation de clé (défaut: pbkdf2)')
+    parser.add_argument('--key-type', choices=['pbkdf2', 'evpkdf', 'hash', 'none'], 
+                       default='pbkdf2', help='Type de génération de clé')
+    
+    parser.add_argument('--hash-algo', choices=['md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512', 'ripemd160'], 
+                       default='sha1', help='Algorithme de hash (défaut: sha1)')
     
     parser.add_argument('--key-size', type=int, choices=[40, 56, 64, 80, 128, 192, 256], 
-                       default=128, help='Taille de clé en bits (défaut: 128)')
+                       default=128, help='Taille de clé en bits')
     
     parser.add_argument('--salt-mode', choices=['random', 'custom', 'none'], 
-                       default='none', help='Mode du sel: random, custom, none (défaut: none)')
+                       default='none', help='Mode du sel')
     
-    parser.add_argument('--salt', default='', help='Sel personnalisé (utilisé avec --salt-mode custom)')
+    parser.add_argument('--salt', default='', help='Sel personnalisé')
     
     parser.add_argument('--iterations', type=int, default=1000, 
-                       help='Nombre d\'itérations pour PBKDF2 (défaut: 1000)')
+                       help='Nombre d\'itérations pour PBKDF2')
     
     parser.add_argument('--input-encoding', choices=['utf8', 'hex', 'base64'], 
                        default='utf8', help='Encodage de l\'entrée')
@@ -191,27 +228,29 @@ Exemples:
     
     final_salt = ''
     
-    if args.kdf != 'none':
+    try:
         derived_key, final_salt = derive_key(
             password=key,
-            kdf_type=args.kdf,
+            key_type=args.key_type,
             key_size=args.key_size,
             salt=args.salt,
             salt_mode=args.salt_mode,
+            hash_algo=args.hash_algo,
             iterations=args.iterations
         )
         
-        print(f"[Info] KDF: {args.kdf.upper()}, Taille clé: {args.key_size} bits")
+        print(f"[Info] Type clé: {args.key_type.upper()}, Hash: {args.hash_algo.upper()}")
+        print(f"[Info] Taille clé: {args.key_size} bits")
         print(f"[Info] Mode sel: {args.salt_mode}")
         if args.salt_mode == 'custom' and args.salt:
             print(f"[Info] Sel personnalisé: {args.salt}")
         if final_salt:
             print(f"[Info] Sel utilisé: {final_salt}")
-        if args.kdf == 'pbkdf2':
+        if args.key_type == 'pbkdf2':
             print(f"[Info] Itérations: {args.iterations}")
-    else:
-        derived_key = key.encode() if isinstance(key, str) else key
-        print("[Info] Pas de dérivation de clé (mode brut)")
+    except Exception as e:
+        print(f"[Erreur] Échec de la dérivation de clé: {e}")
+        sys.exit(1)
     
     if args.input_file:
         try:
