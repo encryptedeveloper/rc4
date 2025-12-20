@@ -3,15 +3,17 @@
 ![Python Version](https://img.shields.io/badge/python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![RC4](https://img.shields.io/badge/algorithm-RC4-red.svg)
-![KDF Support](https://img.shields.io/badge/KDF-PBKDF2%2FEvpKDF-orange.svg)
+![KDF Support](https://img.shields.io/badge/KDF-PBKDF2%2FEvpKDF%2FHash-orange.svg)
+![Hash Support](https://img.shields.io/badge/Hash-MD5%2FSHA%2FRIPEMD160-green.svg)
 
-Un outil complet de chiffrement/déchiffrement RC4 avec support KDF avancé.
+Un outil complet de chiffrement/déchiffrement RC4 avec support KDF et fonctions de hachage avancées.
 
 ## ✨ Fonctionnalités
 
 ### 🔐 Chiffrement & Dérivation de clé
 - **RC4 pur** - Implémentation complète KSA/PRGA
-- **KDF support** - PBKDF2 (SHA1) et EvpKDF (MD5)
+- **KDF support** - PBKDF2, EvpKDF et Hash simple
+- **Fonctions de hachage** - MD5, SHA1, SHA224, SHA256, SHA384, SHA512, RIPEMD160
 - **Gestion avancée des clés** - Tailles 40-256 bits
 - **Sels intelligents** - Random, personnalisé ou aucun
 
@@ -24,7 +26,7 @@ Un outil complet de chiffrement/déchiffrement RC4 avec support KDF avancé.
 - **Drop bytes** - Suppression des N premiers octets
 - **Support fichiers** - Lecture/écriture directe
 - **Pipeline friendly** - stdin/stdout intégration
-- ~~**Compatibilité totale** avec emn178.github.io~~
+- **Compatibilité** avec emn178.github.io (mode `--key-type none`)
 
 ## 📦 Installation
 
@@ -38,19 +40,24 @@ cd rc4
 
 ## 🚀 Utilisation rapide
 
-### Chiffrement basique
+### Chiffrement basique (compatible site)
 ```bash
-python rc4.py "Hello World" "ma_clé"
+python rc4.py "Hello World" "ma_clé" --key-type none
+```
+
+### Avec hash SHA256
+```bash
+python rc4.py "Secret" "password" --key-type hash --hash-algo sha256
 ```
 
 ### Avec KDF PBKDF2 (recommandé)
 ```bash
-python rc4.py "Secret" "password" --kdf pbkdf2 --key-size 256 --salt-mode random
+python rc4.py "Secret" "password" --key-type pbkdf2 --key-size 256 --salt-mode random
 ```
 
 ### Décryptage
 ```bash
-python rc4.py "ciphertext_hex" "password" --decrypt --kdf pbkdf2 --salt-mode custom --salt "votre_sel"
+python rc4.py "ciphertext_hex" "password" --decrypt --key-type hash --hash-algo sha256
 ```
 
 ## 🛠️ Guide complet des options
@@ -61,9 +68,10 @@ text                    Texte à traiter (stdin si vide)
 key                     Clé/passphrase de chiffrement
 ```
 
-### 🔑 Options KDF & Clés
+### 🔑 Options Génération de Clé
 ```
---kdf TYPE             Type KDF [pbkdf2, evpkdf, none] (défaut: pbkdf2)
+--key-type TYPE        Type génération [hash, pbkdf2, evpkdf, none] (défaut: pbkdf2)
+--hash-algo ALGO       Algorithme hash [md5, sha1, sha224, sha256, sha384, sha512, ripemd160]
 --key-size BITS        Taille clé [40,56,64,80,128,192,256] (défaut: 128)
 --salt-mode MODE       Mode sel [random, custom, none] (défaut: none)
 --salt VALUE           Sel personnalisé (avec --salt-mode custom)
@@ -86,69 +94,96 @@ key                     Clé/passphrase de chiffrement
 
 ## 📚 Exemples détaillés
 
-### 🔄 Modes KDF
+### 🔄 Modes de Génération de Clé
 ```bash
-# PBKDF2 avec sel aléatoire (sécurisé)
-python rc4.py "Confidential" "StrongPass" --kdf pbkdf2 --salt-mode random --iterations 10000
+# Hash simple SHA256 (rapide et sécurisé)
+python rc4.py "Confidential" "StrongPass" --key-type hash --hash-algo sha256
 
-# EvpKDF avec sel personnalisé
-python rc4.py "Data" "Key123" --kdf evpkdf --salt-mode custom --salt "MyUniqueSalt"
+# PBKDF2 avec SHA512 et sel aléatoire (très sécurisé)
+python rc4.py "Data" "Key123" --key-type pbkdf2 --hash-algo sha512 --salt-mode random --iterations 10000
 
-# Sans KDF (clé brute - compatible legacy)
-python rc4.py "Text" "rawkey" --kdf none --salt-mode none
+# EvpKDF avec MD5 (compatible legacy)
+python rc4.py "Archive" "oldkey" --key-type evpkdf --hash-algo md5 --salt-mode custom --salt "legacy_salt"
+
+# RIPEMD-160 hash
+python rc4.py "Message" "secure" --key-type hash --hash-algo ripemd160
+
+# Compatible site web (pas de KDF)
+python rc4.py "Test" "simplekey" --key-type none
 ```
 
 ### 🎯 Scénarios pratiques
 ```bash
-# Chiffrement fichier avec KDF
+# Chiffrement fichier avec hash SHA256
 python rc4.py --input-file document.txt --key "master_password" \
-  --kdf pbkdf2 --salt-mode random --output-file document.enc
+  --key-type hash --hash-algo sha256 --output-file document.enc
 
-# Décryptage fichier
+# Décryptage fichier avec mêmes paramètres
 python rc4.py --input-file document.enc --key "master_password" --decrypt \
-  --kdf pbkdf2 --salt-mode custom --salt "53616c7465645f5f3de48688b706620ed2e3" \
-  --output-file document_decrypted.txt
+  --key-type hash --hash-algo sha256 --output-file document_decrypted.txt
 
-# Pipeline avec données hex
-echo -n "48656c6c6f" | python rc4.py --key "test" --input-encoding hex --drop 2
+# Pipeline avec données hex et sel personnalisé
+echo -n "48656c6c6f" | python rc4.py --key "test" --key-type pbkdf2 \
+  --input-encoding hex --salt-mode custom --salt "fixed_salt"
 
-# Batch processing
+# Batch processing avec hash SHA384
 for file in *.txt; do
-  python rc4.py --input-file "$file" --key "batch_key" --kdf evpkdf \
-    --output-file "${file%.txt}.rc4" --salt-mode random
+  python rc4.py --input-file "$file" --key "batch_key" --key-type hash \
+    --hash-algo sha384 --output-file "${file%.txt}.rc4"
 done
 ```
 
-### ✅ Tests de compatibilité
-```bash
-# Vérification avec le site web
-python rc4.py "test" "key" --kdf none --salt-mode none
-# Devrait retourner: bf0b0c (identique au site)
+## 🛡️ Sécurité & Algorithmes
 
-# Test KDF
-python rc4.py "Hello" "world" --kdf pbkdf2 --salt-mode custom --salt "test" --iterations 1
-```
+### Hash Simple (--key-type hash)
+- **Algorithme** : MD5, SHA-* (1/224/256/384/512), RIPEMD160
+- **Avantages** : Rapide, support multiple algorithmes
+- **Utilisation** : `--key-type hash --hash-algo sha256`
 
-## 🛡️ Sécurité & KDF
+### PBKDF2 (--key-type pbkdf2)
+- **Algorithme** : HMAC avec hash choisi
+- **Avantages** : Standardisé, résistant aux attaques par force brute
+- **Utilisation** : `--key-type pbkdf2 --hash-algo sha512 --iterations 10000`
 
-### PBKDF2 (Password-Based Key Derivation Function 2)
-- **Algorithme** : HMAC-SHA1
-- **Avantages** : Standardisé, résistant aux attaques
-- **Utilisation** : `--kdf pbkdf2 --iterations 10000`
+### EvpKDF (--key-type evpkdf)
+- **Algorithme** : Hash itératif
+- **Avantages** : Compatible CryptoJS, flexible
+- **Utilisation** : `--key-type evpkdf --hash-algo md5`
 
-### EvpKDF (EVP Key Derivation Function)
-- **Algorithme** : MD5 itéré
-- **Avantages** : Compatible CryptoJS, rapide
-- **Utilisation** : `--kdf evpkdf`
+### Mode None (--key-type none)
+- **Algorithme** : Aucune transformation
+- **Avantages** : Compatible avec emn178.github.io
+- **Utilisation** : `--key-type none`
 
 ### Gestion des sels
 | Mode | Description | Usage |
 |------|-------------|--------|
-| `random` | Génère un sel sécurisé aléatoire | Pour nouveaux chiffrements |
-| `custom` | Utilise un sel spécifié | Pour déchiffrement ou sel connu |
+| `random` | Génère un sel sécurisé aléatoire | Sécurité maximale |
+| `custom` | Utilise un sel spécifié | Déchiffrement ou sel connu |
 | `none` | Pas de sel | Compatibilité legacy |
 
 **Important** : Conservez le sel généré avec `--salt-mode random` pour pouvoir déchiffrer plus tard!
+
+## ✅ Compatibilité
+
+### Avec emn178.github.io
+Pour une compatibilité totale avec le site [emn178.github.io/online-tools/rc4/](https://emn178.github.io/online-tools/rc4/) :
+```bash
+# Chiffrement compatible
+python rc4.py "test" "key" --key-type none
+
+# Décryptage compatible
+python rc4.py "bf0b0c" "key" --decrypt --key-type none
+```
+
+**Note** : Les modes avec KDF ou hash (`--key-type hash/pbkdf2/evpkdf`) **ne sont pas compatibles** avec le site web, car ils offrent des fonctionnalités supplémentaires.
+
+### 🐛 Signaler un problème de compatibilité
+Si vous trouvez un cas où la sortie diffère du site avec les mêmes paramètres (`--key-type none`), merci d'ouvrir une issue sur GitHub avec :
+1. Le texte d'entrée
+2. La clé utilisée
+3. La sortie attendue (du site)
+4. La sortie obtenue (du script)
 
 ## ⚠️ Dépannage
 
@@ -160,15 +195,19 @@ python rc4.py "short" "key" --drop 10  # Trop grand pour les données
 # Erreur: "Non-hexadecimal digit found"
 python rc4.py "invalid hex" "key" --input-encoding hex  # Nettoyer l'entrée hex
 
+# RIPEMD-160 non disponible
+python rc4.py "test" "key" --key-type hash --hash-algo ripemd160
+# → Fallback automatique vers SHA256
+
 # Décryptage échoue
-# → Vérifiez: même clé, même KDF, même sel, mêmes paramètres
+# → Vérifiez: même key-type, même hash-algo, même sel, mêmes paramètres
 ```
 
 ### Vérification des paramètres
 ```bash
-# Affiche les infos KDF
-python rc4.py "test" "pass" --kdf pbkdf2 --salt-mode random
-# Notez le sel affiché pour déchiffrement futur
+# Affiche les infos complètes
+python rc4.py "test" "pass" --key-type pbkdf2 --hash-algo sha512 --salt-mode random
+# Notez tous les paramètres affichés pour déchiffrement futur
 ```
 
 ## 📊 Structure du projet
@@ -176,19 +215,22 @@ python rc4.py "test" "pass" --kdf pbkdf2 --salt-mode random
 rc4/
 ├── rc4.py              # Script principal
 ├── LICENSE             # Licence MIT
-└── README.md           # Documentation
+├── README.md           # Documentation
+├── .gitignore          # Fichiers ignorés
+└── examples/           # Exemples (à venir)
 ```
 
 ## 🔄 Workflow recommandé
 
-1. **Chiffrement avec sel aléatoire**
+1. **Chiffrement avec paramètres sécurisés**
    ```bash
-   python rc4.py "Mon secret" "MaPassphrase" --kdf pbkdf2 --salt-mode random
+   python rc4.py "Mon secret" "MaPassphrase" --key-type pbkdf2 --hash-algo sha256 --salt-mode random
    ```
 
 2. **Conserver les informations affichées**
    ```
-   [Info] KDF: PBKDF2, Taille clé: 128 bits
+   [Info] Type clé: PBKDF2, Hash: SHA256
+   [Info] Taille clé: 128 bits
    [Info] Mode sel: random
    [Info] Sel utilisé: 53616c7465645f5f3de48688b706620ed2e3
    [Info] Itérations: 1000
@@ -197,17 +239,20 @@ rc4/
 3. **Décryptage avec mêmes paramètres**
    ```bash
    python rc4.py "ciphertext" "MaPassphrase" --decrypt \
-     --kdf pbkdf2 --salt-mode custom --salt "53616c7465645f5f3de48688b706620ed2e3"
+     --key-type pbkdf2 --hash-algo sha256 \
+     --salt-mode custom --salt "53616c7465645f5f3de48688b706620ed2e3"
    ```
 
 ## 🤝 Contribution
 
-Les contributions sont bienvenues! Processus:
+Les contributions sont bienvenues ! Processus :
 1. Fork le projet
 2. Créez une branche feature (`git checkout -b feature/Amelioration`)
 3. Commitez (`git commit -m 'Ajout: Description'`)
 4. Push (`git push origin feature/Amelioration`)
 5. Ouvrez une Pull Request
+
+**Pour les problèmes de compatibilité** avec emn178.github.io, ouvrez une issue avec tous les détails nécessaires.
 
 ## 📄 Licence
 
@@ -215,22 +260,29 @@ MIT License - Voir [LICENSE](LICENSE) pour détails.
 
 ## ⚠️ Avertissement de sécurité
 
-**RC4 est considéré comme cryptographiquement faible** et ne devrait pas être utilisé pour:
+**RC4 est considéré comme cryptographiquement faible** et ne devrait pas être utilisé pour :
 - Données sensibles
 - Communications sécurisées
-- Conformité aux standards modernes
+- Conformité aux standards modernes (PCI-DSS, TLS 1.2+, etc.)
 
-**Utilisez ce tool pour:**
-- Compatibilité legacy
+**Utilisez ce tool pour :**
+- Compatibilité legacy avec systèmes existants
 - Apprentissage cryptographique
 - Applications non-critiques
+- Tests et développement
+
+**Recommandations de sécurité :**
+- Préférez `--key-type pbkdf2` avec `--hash-algo sha256` ou `sha512`
+- Utilisez `--salt-mode random` pour chaque nouveau chiffrement
+- Augmentez `--iterations` à 10000+ pour les données sensibles
+- Conservez les sels générés en lieu sûr
 
 ## 🌟 Support
 
-Si ce projet vous est utile:
+Si ce projet vous est utile :
 - Donnez une ⭐ sur GitHub
-- Signalez les bugs via Issues
-- Proposez des améliorations
+- Signalez les bugs via Issues (surtout les problèmes de compatibilité)
+- Proposez des améliorations ou nouvelles fonctionnalités
 
 ---
 
